@@ -69,11 +69,6 @@ const int PawnPassed[RANK_NB] = {
     S( 24, 86), S( 45,150), S(151,205), S(  0,  0),
 };
 
-const int PassedKingDistance[8] = {
-    S(  0,  0), S(-31,-33), S(-17,-10), S(-17, 11),
-    S( -4, 18), S(  5, 23), S( 17, 22), S( 15, 24),
-};
-
 // Pawn phalanx
 const int PawnPhalanx[RANK_NB] = {
     S(  0,  0), S(  7,  1), S( 15,  8), S( 21, 25),
@@ -307,8 +302,7 @@ INLINE int EvalPassedPawns(const Position *pos, const EvalInfo *ei, const Color 
 
         Square sq = PopLsb(&passers);
 
-        eval += PassedKingDistance[Distance(sq, kingSq(!color))];
-        TraceIncr(PassedKingDistance[Distance(sq, kingSq(!color))]);
+
     }
 
     return eval;

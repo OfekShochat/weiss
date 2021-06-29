@@ -163,54 +163,59 @@ static int AlphaBeta(Thread *thread, Stack *ss, int alpha, int beta, Depth depth
     if (depth <= 0)
         return Quiescence(thread, ss, alpha, beta);
 
+    int bestScore = -INFINITE;
+    int maxScore  =  INFINITE;
+
     // Probe transposition table
     bool ttHit = false;
-    TTEntry *tte = !ss->excluded ? ProbeTT(pos->key, &ttHit) : NULL;
 
     Move ttMove = NOMOVE;
     int ttScore = NOSCORE;
     Depth ttDepth = 0;
     int ttBound = 0;
+    TTEntry *tte = NULL;
 
-    if (ttHit) {
-        ttMove = tte->move;
-        ttScore = ScoreFromTT(tte->score, ss->ply);
-        ttDepth = tte->depth;
-        ttBound = tte->bound;
-    }
+    if (!ss->excluded) {
 
-    // Trust TT if not a pvnode and the entry depth is sufficiently high
-    if (   !pvNode
-        && ttHit
-        && ttDepth >= depth
-        && (ttBound & (ttScore >= beta ? BOUND_LOWER : BOUND_UPPER))) {
+        tte = ProbeTT(pos->key, &ttHit);
 
-        if (ttScore >= beta && moveIsQuiet(ttMove))
-            HistoryBonus(QuietEntry(ttMove), depth*depth);
-
-        return ttScore;
-    }
-
-    int bestScore = -INFINITE;
-    int maxScore  =  INFINITE;
-
-    // Probe syzygy TBs
-    int tbScore, bound;
-    if (ProbeWDL(pos, &tbScore, &bound, ss->ply)) {
-
-        thread->tbhits++;
-
-        if (bound == BOUND_EXACT || (bound == BOUND_LOWER ? tbScore >= beta : tbScore <= alpha)) {
-            StoreTTEntry(tte, pos->key, NOMOVE, ScoreToTT(tbScore, ss->ply), MAX_PLY, bound);
-            return tbScore;
+        if (ttHit) {
+            ttMove = tte->move;
+            ttScore = ScoreFromTT(tte->score, ss->ply);
+            ttDepth = tte->depth;
+            ttBound = tte->bound;
         }
 
-        if (pvNode) {
-            if (bound == BOUND_LOWER)
-                bestScore = tbScore,
-                alpha = MAX(alpha, tbScore);
-            else
-                maxScore = tbScore;
+        // Trust TT if not a pvnode and the entry depth is sufficiently high
+        if (   !pvNode
+            && ttHit
+            && ttDepth >= depth
+            && (ttBound & (ttScore >= beta ? BOUND_LOWER : BOUND_UPPER))) {
+
+            if (ttScore >= beta && moveIsQuiet(ttMove))
+                HistoryBonus(QuietEntry(ttMove), depth*depth);
+
+            return ttScore;
+        }
+
+        // Probe syzygy TBs
+        int tbScore, bound;
+        if (ProbeWDL(pos, &tbScore, &bound, ss->ply)) {
+
+            thread->tbhits++;
+
+            if (bound == BOUND_EXACT || (bound == BOUND_LOWER ? tbScore >= beta : tbScore <= alpha)) {
+                StoreTTEntry(tte, pos->key, NOMOVE, ScoreToTT(tbScore, ss->ply), MAX_PLY, bound);
+                return tbScore;
+            }
+
+            if (pvNode) {
+                if (bound == BOUND_LOWER)
+                    bestScore = tbScore,
+                    alpha = MAX(alpha, tbScore);
+                else
+                    maxScore = tbScore;
+            }
         }
     }
 

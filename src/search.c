@@ -164,18 +164,26 @@ static int AlphaBeta(Thread *thread, Stack *ss, int alpha, int beta, Depth depth
         return Quiescence(thread, ss, alpha, beta);
 
     // Probe transposition table
-    bool ttHit;
-    Key key = pos->key ^ (((Key)ss->excluded) << 32);
-    TTEntry *tte = ProbeTT(key, &ttHit);
+    bool ttHit = false;
+    TTEntry *tte = !ss->excluded ? ProbeTT(pos->key, &ttHit) : NULL;
 
-    Move ttMove = ttHit ? tte->move : NOMOVE;
-    int ttScore = ttHit ? ScoreFromTT(tte->score, ss->ply) : NOSCORE;
+    Move ttMove = NOMOVE;
+    int ttScore = NOSCORE;
+    Depth ttDepth = 0;
+    int ttBound = 0;
+
+    if (ttHit) {
+        ttMove = tte->move;
+        ttScore = ScoreFromTT(tte->score, ss->ply);
+        ttDepth = tte->depth;
+        ttBound = tte->bound;
+    }
 
     // Trust TT if not a pvnode and the entry depth is sufficiently high
     if (   !pvNode
         && ttHit
-        && tte->depth >= depth
-        && (tte->bound & (ttScore >= beta ? BOUND_LOWER : BOUND_UPPER))) {
+        && ttDepth >= depth
+        && (ttBound & (ttScore >= beta ? BOUND_LOWER : BOUND_UPPER))) {
 
         if (ttScore >= beta && moveIsQuiet(ttMove))
             HistoryBonus(QuietEntry(ttMove), depth*depth);
@@ -193,7 +201,7 @@ static int AlphaBeta(Thread *thread, Stack *ss, int alpha, int beta, Depth depth
         thread->tbhits++;
 
         if (bound == BOUND_EXACT || (bound == BOUND_LOWER ? tbScore >= beta : tbScore <= alpha)) {
-            StoreTTEntry(tte, key, NOMOVE, ScoreToTT(tbScore, ss->ply), MAX_PLY, bound);
+            StoreTTEntry(tte, pos->key, NOMOVE, ScoreToTT(tbScore, ss->ply), MAX_PLY, bound);
             return tbScore;
         }
 
@@ -213,7 +221,7 @@ static int AlphaBeta(Thread *thread, Stack *ss, int alpha, int beta, Depth depth
 
     // Use ttScore as eval if it is more informative
     if (   ttScore != NOSCORE
-        && tte->bound & (ttScore > eval ? BOUND_LOWER : BOUND_UPPER))
+        && ttBound & (ttScore > eval ? BOUND_LOWER : BOUND_UPPER))
         eval = ttScore;
 
     // Improving if not in check, and current eval is higher than 2 plies ago
@@ -265,7 +273,7 @@ static int AlphaBeta(Thread *thread, Stack *ss, int alpha, int beta, Depth depth
     if (   depth >= 5
         && abs(beta) < TBWIN_IN_MAX
         && !(   ttHit
-             && tte->bound & BOUND_UPPER
+             && ttBound & BOUND_UPPER
              && ttScore < beta)) {
 
         int threshold = beta + 200;
@@ -350,8 +358,8 @@ move_loop:
         if (   depth > 8
             && move == ttMove
             && !ss->excluded
-            && tte->depth > depth - 3
-            && tte->bound != BOUND_UPPER
+            && ttDepth > depth - 3
+            && ttBound != BOUND_UPPER
             && abs(ttScore) < TBWIN_IN_MAX / 4
             && !root) {
 
@@ -477,7 +485,7 @@ skip_search:
                    : alpha != oldAlpha ? BOUND_EXACT
                                        : BOUND_UPPER;
     if (!ss->excluded)
-        StoreTTEntry(tte, key, bestMove, ScoreToTT(bestScore, ss->ply), depth, flag);
+        StoreTTEntry(tte, pos->key, bestMove, ScoreToTT(bestScore, ss->ply), depth, flag);
 
     return bestScore;
 }

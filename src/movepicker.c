@@ -129,7 +129,9 @@ Move NextMove(MovePicker *mp) {
 
             mp->stage++;
             mp->list.next = 0;
+            mp->list.count = mp->bads;
             mp->list.moves[mp->bads].move = NOMOVE;
+            SortMoves(&mp->list);
 
             // fall through
         case NOISY_BAD:

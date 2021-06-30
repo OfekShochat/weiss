@@ -30,6 +30,8 @@
 
 typedef struct {
     int eval;
+    int tt_fails;
+    int tt_success;
     Depth ply;
     Move excluded;
     Move killers[2];
@@ -55,6 +57,7 @@ typedef struct Thread {
 
     int index;
     int count;
+    int tt_fails;
 
 } Thread;
 

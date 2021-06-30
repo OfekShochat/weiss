@@ -63,6 +63,10 @@ bool OutOfTime(Thread *thread) {
         || (thread->pos.nodes & 2047) != 2047)
         return false;
 
+    if (thread->tt_fails / thread->pos.nodes > 0.5) {
+        Limits.optimalUsage += 10;
+    }
+
     if (  !thread->doPruning
         && Limits.infinite ? TimeSince(Limits.start) > 5000
                            : TimeSince(Limits.start) >= Limits.optimalUsage / 32)
